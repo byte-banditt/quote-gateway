@@ -31,18 +31,20 @@ A timeout bounds waiting for a failed dependency. Bounded retries with doubling 
 
 ## Limitations
 
-The cache is single-node and in-memory; SQLite has one writer; there is no auth; the upstream is simulated; and the load test uses one machine.
+The cache is per-process and in-memory; SQLite has one writer; there is no request coalescing, so concurrent misses for one symbol each call the upstream; there is no auth; the upstream is simulated; and the load test uses one machine.
 
 ## Load-test results
 
-The script uses a fixed 20 requests/s for 30 s over five symbols. Run separately with `FAIL_RATE=0, DELAY_MS=20` and `FAIL_RATE=0.2, DELAY_MS=20`; each scenario is run 3 times and reported by median. Raw summaries belong in `loadtest/results` and must not be edited.
+`loadtest/quotes.js` accepts `RATE`, `DURATION`, and `SKIP_WARMUP=1`. `loadtest/run.sh` runs ramp steps at 50, 100, 200, 400, and 800 req/s for 20 s each, and checks both ports before and after every run. It starts each gateway/upstream pair with `CacheTtlMs=0`; this disables the in-memory cache because `AgeMs(...)` is never less than 0. The scenario runs warm SQLite by requesting every symbol once before load. The original setting is retained as `reference` (`CacheTtlMs=2000`, 20 req/s).
 
-| Scenario | Requests/s | p50 ms | p95 ms | p99 ms | HTTP 200 | live/cache/stale |
-|---|---:|---:|---:|---:|---:|---:|
-| Healthy (2 verified runs) | 20.0053 | 0.7954 | 11.6549 | 33.6446 | 100% | 30.5/570/0 median counts |
-| 20% failures (3 runs) | 19.9586 | 0.9242 | 25.7303 | 38.4551 | 100% | 37/564/0 median counts |
+Sustainable means zero `dropped_iterations` and p99 < 100 ms. `RATE_MAX` is the highest sustainable ramp step; scenario load is 50% of it. For each scenario, report the measured median of three runs only. No new medians were recorded in this environment: `dotnet` is unavailable, so the gateway and upstream could not run. Therefore no unmeasured values are shown below.
 
-Healthy third run was not accepted: an old process held port `5101`, contaminating the result. The three raw `20% failures` summaries and the two accepted healthy summaries remain unchanged in `loadtest/results`; all numbers above come from those files.
+| Scenario | Achieved req/s | dropped_iterations | p50 ms | p95 ms | p99 ms | HTTP 200 | live/cache/stale/503 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+
+Topology for the intended run: Linux WSL2 (`6.18.40.1-microsoft-standard-WSL2`, x86_64); gateway and FakeUpstream run as local `dotnet` processes; k6 runs locally and reaches them over `127.0.0.1:5100` and `127.0.0.1:5101`; SQLite is `quote-gateway.db` in the repository working directory (`/home/ayussh/projects/quote-gateway`), on `ext4`; host has 16 CPUs and 4.8 GiB RAM. This environment has `k6` but no `dotnet`, so the topology was not executed here.
+
+Rates are modest and are not production capacity. Scenario C requires warm-up, then a fully stopped upstream; stale fallback is exercised only if retries fail and the warmed SQLite row remains. Its retry latency is measured as the C p95/p99 minus the healthy baseline, not estimated.
 
 ## CI
 
