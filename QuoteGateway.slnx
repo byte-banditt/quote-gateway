@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/FakeUpstream/FakeUpstream.csproj" />
+    <Project Path="src/QuoteGateway/QuoteGateway.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/QuoteGateway.Tests/QuoteGateway.Tests.csproj" />
+  </Folder>
+</Solution>
