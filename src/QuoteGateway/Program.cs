@@ -6,6 +6,7 @@ using Microsoft.Data.Sqlite;
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
+builder.Logging.AddFilter((category, _) => category == typeof(QuoteService).FullName || category == typeof(Program).FullName);
 builder.Services.Configure<GatewayOptions>(builder.Configuration);
 builder.Services.AddSingleton<IClock, SystemClock>();
 builder.Services.AddSingleton<QuoteStore>();
