@@ -1,0 +1,1 @@
+scenario-0-1.json, scenario-0-2.json, scenario-0-3.json, scenario-0p2-1.json, scenario-0p2-2.json, scenario-0p2-3.json, scenario-c-1.json, scenario-c-2.json, scenario-c-3.json, and their C warm-up files were discarded: they were run with RATE_MAX=400 before the measured ramp established RATE_MAX=50. They are not used for medians.
