@@ -4,3 +4,24 @@ obj/
 *.db-shm
 *.db-wal
 loadtest/results/*.json
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+appsettings.Local.json
+appsettings.*.local.json
+*.user
+*.suo
+*.pfx
+*.pem
+*.key
+*.crt
+
+# IDE, OS, coverage, and local test output
+.vs/
+.vscode/
+.idea/
+.DS_Store
+TestResults/
+coverage/
