@@ -37,14 +37,26 @@ The cache is per-process and in-memory; SQLite has one writer; there is no reque
 
 `loadtest/quotes.js` accepts `RATE`, `DURATION`, and `SKIP_WARMUP=1`. `loadtest/run.sh` runs ramp steps at 50, 100, 200, 400, and 800 req/s for 20 s each, and checks both ports before and after every run. It starts each gateway/upstream pair with `CacheTtlMs=0`; this disables the in-memory cache because `AgeMs(...)` is never less than 0. The scenario runs warm SQLite by requesting every symbol once before load. The original setting is retained as `reference` (`CacheTtlMs=2000`, 20 req/s).
 
-Sustainable means zero `dropped_iterations` and p99 < 100 ms. `RATE_MAX` is the highest sustainable ramp step; scenario load is 50% of it. For each scenario, report the measured median of three runs only. No new medians were recorded in this environment: `dotnet` is unavailable, so the gateway and upstream could not run. Therefore no unmeasured values are shown below.
+Sustainable means zero `dropped_iterations` and p99 < 100 ms. `RATE_MAX=50` req/s: 50 req/s is sustainable, while 100 req/s has measured p99 `170.724219` ms. Scenario load is 50% of `RATE_MAX`, or 25 req/s. Scenario rows below are medians of 3 clean runs; source splits are median counts.
+
+| Ramp step | Achieved req/s | dropped_iterations | p95 ms | p99 ms |
+|---:|---:|---:|---:|---:|
+| 50 | 50.044996 | 0 | 28.742001 | 29.878681 |
+| 100 | 99.985002 | 0 | 28.219864 | 170.724219 |
+| 200 | 197.160883 | 0 | 365.452384 | 781.537136 |
+| 400 | 288.220987 | 1364 | 4785.353513 | 5429.265712 |
+| 800 | 351.199762 | 6545 | 6309.197053 | 7693.594804 |
 
 | Scenario | Achieved req/s | dropped_iterations | p50 ms | p95 ms | p99 ms | HTTP 200 | live/cache/stale/503 |
 |---|---:|---:|---:|---:|---:|---:|---:|
+| A: `FAIL_RATE=0`, `DELAY_MS=20` | 25.060144 | 0 | 24.677594 | 27.328100 | 29.289321 | 100% | 500/0/0/0 |
+| B: `FAIL_RATE=0.2`, `DELAY_MS=20` | 25.055011 | 0 | 24.914118 | 172.873500 | 249.733695 | 100% | 499/0/2/0 |
+| C: upstream down after warm-up | 25.077585 | 0 | 153.336639 | 156.446349 | 158.434371 | 100% | 0/0/501/0 |
+| Original reference: `CacheTtlMs=2000`, 20 req/s | 20.018653 | 0 | 0.716942 | 1.892537 | 27.213970 | 100% | 18/583/0/0 |
 
-Topology for the intended run: Linux WSL2 (`6.18.40.1-microsoft-standard-WSL2`, x86_64); gateway and FakeUpstream run as local `dotnet` processes; k6 runs locally and reaches them over `127.0.0.1:5100` and `127.0.0.1:5101`; SQLite is `quote-gateway.db` in the repository working directory (`/home/ayussh/projects/quote-gateway`), on `ext4`; host has 16 CPUs and 4.8 GiB RAM. This environment has `k6` but no `dotnet`, so the topology was not executed here.
+Topology for the run: Linux WSL2 (`6.18.40.1-microsoft-standard-WSL2`, x86_64); gateway and FakeUpstream ran as local `dotnet` processes; k6 ran locally and reached them over `127.0.0.1:5100` and `127.0.0.1:5101`; SQLite was `quote-gateway.db` in the repository working directory (`/home/ayussh/projects/quote-gateway`), on `ext4`; host had 16 CPUs and 4.8 GiB RAM.
 
-Rates are modest and are not production capacity. Scenario C requires warm-up, then a fully stopped upstream; stale fallback is exercised only if retries fail and the warmed SQLite row remains. Its retry latency is measured as the C p95/p99 minus the healthy baseline, not estimated.
+Rates are modest and are not production capacity. Scenario C exercised stale fallback in all 3 runs: `501` stale responses per run, with no live/cache/503 responses. Relative to A, retries added measured median latency of `128.659045` ms at p50, `129.118249` ms at p95, and `129.145050` ms at p99.
 
 ## CI
 
